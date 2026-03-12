@@ -57,6 +57,7 @@ class RewardConfig:
     torque_weight: float
     motion_weight: float
     smoothness_weight: float
+    ground_contact_penalty: float
     hold_bonus_weight: float
     success_bonus: float
 
@@ -273,14 +274,16 @@ class BridgeRobotEnv:
         reward_breakdown = compute_reward(
             distance_to_target=distance,
             action_normalized=applied_action_norm,
-            joint_velocities=result.qd,
+            joint_velocities=result_qd,
             previous_action=self.previous_action_norm,
+            ground_contact=ground_contact,
             hold_progress=hold_progress if success_ready else 0.0,
             success=success,
             distance_weight=self.config.reward.distance_weight,
             torque_weight=self.config.reward.torque_weight,
             motion_weight=self.config.reward.motion_weight,
             smoothness_weight=self.config.reward.smoothness_weight,
+            ground_contact_penalty=self.config.reward.ground_contact_penalty,
             hold_bonus_weight=self.config.reward.hold_bonus_weight,
             success_bonus=self.config.reward.success_bonus,
         )
@@ -308,8 +311,8 @@ class BridgeRobotEnv:
         )
         self.previous_action_norm = applied_action_norm.copy()
 
-        terminated = success
-        truncated = self.state.step_count >= self.config.sim.max_steps
+        terminated = success or ground_contact
+        truncated = (not terminated) and self.state.step_count >= self.config.sim.max_steps
         self._record_history(
             reward=reward_breakdown.total,
             terminated=terminated,

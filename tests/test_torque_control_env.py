@@ -31,6 +31,7 @@ def make_env() -> TorqueControlEnv:
             torque_weight=base_env.config.reward.torque_weight,
             motion_weight=base_env.config.reward.motion_weight,
             smoothness_weight=base_env.config.reward.smoothness_weight,
+            ground_contact_penalty=base_env.config.reward.ground_contact_penalty,
             hold_bonus_weight=base_env.config.reward.hold_bonus_weight,
             success_bonus=base_env.config.reward.success_bonus,
         ),

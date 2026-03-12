@@ -35,6 +35,7 @@ def make_static_env(*, success_hold_steps: int = 3, success_tolerance: float = 1
             torque_weight=env.config.reward.torque_weight,
             motion_weight=env.config.reward.motion_weight,
             smoothness_weight=env.config.reward.smoothness_weight,
+            ground_contact_penalty=env.config.reward.ground_contact_penalty,
             hold_bonus_weight=env.config.reward.hold_bonus_weight,
             success_bonus=env.config.reward.success_bonus,
         ),
@@ -204,7 +205,10 @@ def test_ground_contact_rejects_invalid_step_and_zeros_motion():
     assert result.info["ground_contact"] is True
     assert result.info["workspace_violation"] is True
     assert result.info["joint_limit_violation"] is False
-    assert result.terminated is False
+    assert result.terminated is True
+    assert result.truncated is False
+    assert result.info["reward_terms"]["ground_contact_penalty"] == -env.config.reward.ground_contact_penalty
+    assert result.info["reward_terms"]["motion_penalty"] == 0.0
     assert np.allclose(env.state.q, previous_q)
     assert np.allclose(env.state.joint_positions, previous_joint_positions)
     assert np.allclose(env.state.end_effector_pos, previous_ee)
@@ -212,6 +216,52 @@ def test_ground_contact_rejects_invalid_step_and_zeros_motion():
     assert np.allclose(env.state.qdd, np.zeros(4, dtype=float))
     assert np.allclose(env.state.end_effector_vel, np.zeros(2, dtype=float))
     assert np.allclose(env.state.end_effector_acc, np.zeros(2, dtype=float))
+
+
+def test_ground_contact_terminates_even_at_max_steps():
+    env = make_static_env(max_steps=1)
+    obs = env.reset(seed=5)
+    q = np.array([0.05, 0.4, 0.2, 0.0], dtype=float)
+    kin = forward_kinematics(q, env.config.robot.link_lengths)
+    gravity_torques = compute_gravity_torques(
+        joint_angles=q,
+        link_lengths=env.config.robot.link_lengths,
+        link_masses=env.config.robot.link_masses,
+        payload_mass=env.config.robot.payload_mass,
+        gravity=env.config.sim.gravity,
+    )
+    equivalent_inertia = compute_equivalent_inertia(
+        joint_angles=q,
+        link_lengths=env.config.robot.link_lengths,
+        link_masses=env.config.robot.link_masses,
+        payload_mass=env.config.robot.payload_mass,
+    )
+    env.state = RobotState(
+        q=q,
+        qd=np.array([-10.0, 0.0, 0.0, 0.0], dtype=float),
+        qdd=np.zeros(4, dtype=float),
+        joint_positions=kin.joint_positions,
+        end_effector_pos=kin.end_effector_pos,
+        end_effector_vel=np.zeros(2, dtype=float),
+        end_effector_acc=np.zeros(2, dtype=float),
+        joint_torques=gravity_torques,
+        joint_power=np.zeros(4, dtype=float),
+        step_count=0,
+        applied_action=np.zeros(4, dtype=float),
+        applied_action_norm=np.zeros(4, dtype=float),
+        target_pos=obs["target_pos"].copy(),
+        distance_to_target=float(np.linalg.norm(kin.end_effector_pos - obs["target_pos"])),
+        gravity_torques=gravity_torques,
+        equivalent_inertia=equivalent_inertia,
+        consecutive_success_steps=0,
+        hold_progress=0.0,
+        success_ready=False,
+    )
+
+    result = env.step(np.zeros(4, dtype=float))
+
+    assert result.terminated is True
+    assert result.truncated is False
 
 
 def test_joint_limit_violation_sets_workspace_violation():

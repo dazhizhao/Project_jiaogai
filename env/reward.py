@@ -12,6 +12,7 @@ class RewardBreakdown:
     torque_penalty: float
     motion_penalty: float
     smoothness_penalty: float
+    ground_contact_penalty: float
     hold_bonus: float
     success_bonus: float
 
@@ -37,12 +38,14 @@ def compute_reward(
     action_normalized: Sequence[float],
     joint_velocities: Sequence[float],
     previous_action: Sequence[float],
+    ground_contact: bool,
     hold_progress: float,
     success: bool,
     distance_weight: float,
     torque_weight: float,
     motion_weight: float,
     smoothness_weight: float,
+    ground_contact_penalty: float,
     hold_bonus_weight: float,
     success_bonus: float,
 ) -> RewardBreakdown:
@@ -55,6 +58,7 @@ def compute_reward(
         torque_penalty=-torque_weight * float(np.sum(action**2)),
         motion_penalty=-motion_weight * float(np.sum(joint_velocity**2)),
         smoothness_penalty=-smoothness_weight * float(np.sum((action - prev_action) ** 2)),
+        ground_contact_penalty=-ground_contact_penalty if ground_contact else 0.0,
         hold_bonus=hold_bonus_weight * float(hold_progress),
         success_bonus=success_bonus if success else 0.0,
     )
