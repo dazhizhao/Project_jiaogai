@@ -4,6 +4,8 @@
 
 This repository studies torque control for a four-link manipulator with reinforcement learning. A mechanics-based simulator is used directly as the environment, and SAC is trained to drive the end effector to a target region under dynamic constraints.
 
+The repository also includes a simpler static design direction based on link-length allocation, aimed at enlarging the maximum reachable workspace.
+
 ## Project Motivation
 
 This project started from a personal interest in reinforcement learning after watching DeepMind's *The Thinking Game*. I wanted to try the RL workflow myself, especially the idea of training directly through interaction with an environment instead of relying on an offline dataset.
@@ -12,7 +14,7 @@ That motivation led to a simple pipeline:
 
 1. Build a physical model from theoretical mechanics.
 2. Use that model as the reinforcement learning environment.
-3. Train a policy and compare rollout videos across optimization stages.
+3. Train a policy and compare its behavior across optimization stages.
 
 ## Method
 
@@ -41,29 +43,25 @@ The overall trend is clear: early training mainly improves whether the manipulat
 
 ![Stage 50k rollout](docs/media/stage-050k.gif)
 
-At 50k steps, the policy is still far from stable target reaching.  
-Video: [stage-050k.mp4](docs/media/stage-050k.mp4)
+At 50k steps, the policy is still far from stable target reaching.
 
 ### Stage 100k
 
 ![Stage 100k rollout](docs/media/stage-100k.gif)
 
-At 100k steps, the controller moves much closer to the target, but it is still not reliably successful.  
-Video: [stage-100k.mp4](docs/media/stage-100k.mp4)
+At 100k steps, the controller moves much closer to the target, but it is still not reliably successful.
 
 ### Stage 200k
 
 ![Stage 200k rollout](docs/media/stage-200k.gif)
 
-At 200k steps, the behavior is close to the success threshold, showing strong improvement in target-reaching quality.  
-Video: [stage-200k.mp4](docs/media/stage-200k.mp4)
+At 200k steps, the behavior is close to the success threshold, showing strong improvement in target-reaching quality.
 
 ### Best Policy
 
 ![Best policy rollout](docs/media/best-policy.gif)
 
-The final best policy is the canonical result of this run. It demonstrates both stable reaching and improved efficiency.  
-Video: [best-policy.mp4](docs/media/best-policy.mp4)
+The final best policy is the canonical result of this run. It demonstrates both stable reaching and improved efficiency.
 
 ![Best joint torques](docs/media/best_joint_torques.png)
 
