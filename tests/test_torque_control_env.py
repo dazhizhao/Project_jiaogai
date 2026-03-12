@@ -27,7 +27,7 @@ def make_env() -> TorqueControlEnv:
             success_hold_steps=base_env.config.task.success_hold_steps,
         ),
         reward=RewardConfig(
-            distance_weight=base_env.config.reward.distance_weight,
+            progress_weight=base_env.config.reward.progress_weight,
             torque_weight=base_env.config.reward.torque_weight,
             motion_weight=base_env.config.reward.motion_weight,
             smoothness_weight=base_env.config.reward.smoothness_weight,

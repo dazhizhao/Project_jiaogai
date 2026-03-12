@@ -8,7 +8,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class RewardBreakdown:
-    distance_reward: float
+    progress_reward: float
     torque_penalty: float
     motion_penalty: float
     smoothness_penalty: float
@@ -19,10 +19,11 @@ class RewardBreakdown:
     @property
     def total(self) -> float:
         return (
-            self.distance_reward
+            self.progress_reward
             + self.torque_penalty
             + self.motion_penalty
             + self.smoothness_penalty
+            + self.ground_contact_penalty
             + self.hold_bonus
             + self.success_bonus
         )
@@ -34,14 +35,15 @@ class RewardBreakdown:
 
 
 def compute_reward(
-    distance_to_target: float,
+    previous_distance: float,
+    current_distance: float,
     action_normalized: Sequence[float],
     joint_velocities: Sequence[float],
     previous_action: Sequence[float],
     ground_contact: bool,
     hold_progress: float,
     success: bool,
-    distance_weight: float,
+    progress_weight: float,
     torque_weight: float,
     motion_weight: float,
     smoothness_weight: float,
@@ -52,9 +54,10 @@ def compute_reward(
     action = np.asarray(action_normalized, dtype=float)
     joint_velocity = np.asarray(joint_velocities, dtype=float)
     prev_action = np.asarray(previous_action, dtype=float)
+    progress = float(previous_distance) - float(current_distance)
 
     return RewardBreakdown(
-        distance_reward=-distance_weight * float(distance_to_target),
+        progress_reward=progress_weight * progress,
         torque_penalty=-torque_weight * float(np.sum(action**2)),
         motion_penalty=-motion_weight * float(np.sum(joint_velocity**2)),
         smoothness_penalty=-smoothness_weight * float(np.sum((action - prev_action) ** 2)),

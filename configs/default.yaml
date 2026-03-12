@@ -30,13 +30,13 @@
     "success_hold_steps": 10
   },
   "reward": {
-    "distance_weight": 1.0,
+    "progress_weight": 5.0,
     "torque_weight": 0.01,
     "motion_weight": 0.001,
     "smoothness_weight": 0.01,
-    "ground_contact_penalty": 25.0,
+    "ground_contact_penalty": 100.0,
     "hold_bonus_weight": 1.0,
-    "success_bonus": 10.0
+    "success_bonus": 100.0
   },
   "render": {
     "figsize": [8.0, 8.0],

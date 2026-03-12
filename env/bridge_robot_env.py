@@ -53,7 +53,7 @@ class TaskConfig:
 
 @dataclass(frozen=True)
 class RewardConfig:
-    distance_weight: float
+    progress_weight: float
     torque_weight: float
     motion_weight: float
     smoothness_weight: float
@@ -232,6 +232,7 @@ class BridgeRobotEnv:
             out=np.zeros_like(result.applied_action),
             where=torque_limits > 0.0,
         )
+        previous_distance = float(self.state.distance_to_target)
         distance = float(np.linalg.norm(result.end_effector_pos - self.state.target_pos))
         ground_contact = not is_pose_above_ground(
             result.joint_positions,
@@ -272,14 +273,15 @@ class BridgeRobotEnv:
         )
         success = consecutive_success_steps >= self.config.task.success_hold_steps
         reward_breakdown = compute_reward(
-            distance_to_target=distance,
+            previous_distance=previous_distance,
+            current_distance=distance,
             action_normalized=applied_action_norm,
             joint_velocities=result_qd,
             previous_action=self.previous_action_norm,
             ground_contact=ground_contact,
             hold_progress=hold_progress if success_ready else 0.0,
             success=success,
-            distance_weight=self.config.reward.distance_weight,
+            progress_weight=self.config.reward.progress_weight,
             torque_weight=self.config.reward.torque_weight,
             motion_weight=self.config.reward.motion_weight,
             smoothness_weight=self.config.reward.smoothness_weight,

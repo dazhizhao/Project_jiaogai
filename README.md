@@ -32,14 +32,17 @@
 
 当前 reward 由以下部分组成：
 
-- `distance_reward = -distance_weight * distance_to_target`
+- `progress_reward = progress_weight * (previous_distance_to_target - current_distance_to_target)`
 - `torque_penalty = -torque_weight * sum((applied_torque / torque_limits)^2)`
 - `motion_penalty = -motion_weight * sum(qd^2)`
 - `smoothness_penalty = -smoothness_weight * sum((action_norm - prev_action_norm)^2)`
+- `ground_contact_penalty`：撞地时一次性失败惩罚
 - `hold_bonus = hold_bonus_weight * hold_progress`
 - `success_bonus`
 
 `joint_power` 仍然会在状态、历史和可视化中保留，但不再作为优化目标进入 reward。
+
+当前默认约束语义是：机械臂只能在 `y >= 0` 半平面工作；若任意连杆进入 `y < 0`，回合会立即以失败终止，并施加 `ground_contact_penalty`。
 
 ### 训练入口
 
