@@ -19,6 +19,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from env.link_allocation_env import LinkAllocationConfig, LinkAllocationEnv
+from visualization.link_allocation import (
+    export_workspace_video,
+    render_workspace_preview,
+    save_workspace_samples,
+)
 
 
 @dataclass(frozen=True)
@@ -86,6 +91,11 @@ def evaluate_policy(model, env: LinkAllocationEnv, eval_episodes: int) -> dict[s
     best_reward = float("-inf")
     best_lengths: np.ndarray | None = None
     best_metrics: dict[str, float] | None = None
+    best_points: np.ndarray | None = None
+    best_joint_angles: np.ndarray | None = None
+    best_representative_angles: np.ndarray | None = None
+    best_grid_shape: list[int] | None = None
+    best_xy_bounds: np.ndarray | None = None
 
     for _ in range(eval_episodes):
         obs, _ = env.reset()
@@ -102,12 +112,24 @@ def evaluate_policy(model, env: LinkAllocationEnv, eval_episodes: int) -> dict[s
             best_reward = reward_value
             best_lengths = lengths.copy()
             best_metrics = {
-                "workspace_area": float(info["workspace_area"]),
-                "inner_radius": float(info["inner_radius"]),
-                "outer_radius": float(info["outer_radius"]),
+                "occupied_ratio": float(info["occupied_ratio"]),
+                "workspace_area_estimate": float(info["workspace_area_estimate"]),
             }
+            best_points = np.asarray(info["workspace_points"], dtype=np.float32)
+            best_joint_angles = np.asarray(info["joint_angle_samples"], dtype=np.float32)
+            best_representative_angles = np.asarray(info["representative_joint_angles"], dtype=np.float32)
+            best_grid_shape = [int(value) for value in info["grid_shape"]]
+            best_xy_bounds = np.asarray(info["xy_bounds"], dtype=np.float32)
 
-    if best_lengths is None or best_metrics is None:
+    if (
+        best_lengths is None
+        or best_metrics is None
+        or best_points is None
+        or best_joint_angles is None
+        or best_representative_angles is None
+        or best_grid_shape is None
+        or best_xy_bounds is None
+    ):
         raise RuntimeError("Evaluation did not produce any episodes.")
 
     return {
@@ -118,6 +140,11 @@ def evaluate_policy(model, env: LinkAllocationEnv, eval_episodes: int) -> dict[s
         "best_lengths": best_lengths.tolist(),
         "best_metrics": best_metrics,
         "allocated_lengths_history": allocated_history,
+        "best_workspace_points": best_points,
+        "best_joint_angle_samples": best_joint_angles,
+        "best_representative_joint_angles": best_representative_angles,
+        "best_grid_shape": best_grid_shape,
+        "best_xy_bounds": best_xy_bounds,
     }
 
 
@@ -163,6 +190,39 @@ def main() -> None:
     model.save(str(model_path))
 
     evaluation = evaluate_policy(model, eval_env, eval_episodes=eval_episodes)
+    samples_path = save_workspace_samples(
+        output_path=run_dir / "best_workspace_samples.npz",
+        points=evaluation["best_workspace_points"],
+        lengths=evaluation["best_lengths"],
+        occupied_ratio=evaluation["best_metrics"]["occupied_ratio"],
+        workspace_area_estimate=evaluation["best_metrics"]["workspace_area_estimate"],
+        xy_bounds=evaluation["best_xy_bounds"],
+        grid_shape=evaluation["best_grid_shape"],
+        joint_angle_samples=evaluation["best_joint_angle_samples"],
+        representative_joint_angles=evaluation["best_representative_joint_angles"],
+    )
+    preview_path = render_workspace_preview(
+        output_path=run_dir / "best_workspace.png",
+        points=evaluation["best_workspace_points"],
+        lengths=evaluation["best_lengths"],
+        representative_joint_angles=evaluation["best_representative_joint_angles"],
+        xy_bounds=evaluation["best_xy_bounds"],
+        occupied_ratio=evaluation["best_metrics"]["occupied_ratio"],
+        workspace_area_estimate=evaluation["best_metrics"]["workspace_area_estimate"],
+    )
+    video_path = export_workspace_video(
+        output_path=run_dir / "best_workspace.mp4",
+        points=evaluation["best_workspace_points"],
+        lengths=evaluation["best_lengths"],
+        representative_joint_angles=evaluation["best_representative_joint_angles"],
+        xy_bounds=evaluation["best_xy_bounds"],
+        occupied_ratio=evaluation["best_metrics"]["occupied_ratio"],
+        workspace_area_estimate=evaluation["best_metrics"]["workspace_area_estimate"],
+        fps=env_config.video.fps,
+        frames=env_config.video.frames,
+        point_size=env_config.video.point_size,
+        alpha=env_config.video.alpha,
+    )
     train_payload = {
         "env_config": asdict(env_config),
         "train_config": asdict(train_config),
@@ -183,6 +243,11 @@ def main() -> None:
             "episodes": evaluation["episodes"],
             "best_reward": evaluation["best_reward"],
             "best_metrics": evaluation["best_metrics"],
+            "artifact_paths": {
+                "workspace_samples": str(samples_path),
+                "workspace_preview": str(preview_path),
+                "workspace_video": str(video_path),
+            },
         },
     )
     ensure_json(
@@ -190,6 +255,8 @@ def main() -> None:
         {
             "allocated_lengths": evaluation["best_lengths"],
             "reward": evaluation["best_reward"],
+            "grid_shape": evaluation["best_grid_shape"],
+            "xy_bounds": np.asarray(evaluation["best_xy_bounds"], dtype=np.float32).tolist(),
             **evaluation["best_metrics"],
         },
     )
@@ -197,6 +264,9 @@ def main() -> None:
     print(f"saved model to {model_path}")
     print(f"saved evaluation to {run_dir / 'evaluation.json'}")
     print(f"saved best lengths to {run_dir / 'best_lengths.json'}")
+    print(f"saved workspace samples to {samples_path}")
+    print(f"saved workspace preview to {preview_path}")
+    print(f"saved workspace video to {video_path}")
 
 
 if __name__ == "__main__":

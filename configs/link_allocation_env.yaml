@@ -2,5 +2,26 @@
   "total_length": 3.6,
   "default_link_lengths": [1.2, 1.0, 0.8, 0.6],
   "min_link_lengths": [0.4, 0.4, 0.4, 0.4],
-  "max_link_lengths": [1.4, 1.4, 1.4, 1.4]
+  "max_link_lengths": [1.4, 1.4, 1.4, 1.4],
+  "joint_angle_limits": [
+    [-1.4, 1.4],
+    [-1.2, 1.2],
+    [-1.0, 1.0],
+    [-0.8, 0.8]
+  ],
+  "workspace_sampling": {
+    "num_samples": 512,
+    "seed": 17,
+    "grid_size": [64, 64],
+    "xy_bounds": [
+      [-3.6, 3.6],
+      [-3.6, 3.6]
+    ]
+  },
+  "video": {
+    "fps": 12,
+    "frames": 48,
+    "point_size": 10.0,
+    "alpha": 0.35
+  }
 }

@@ -39,7 +39,7 @@ def test_projected_lengths_respect_sum_and_bounds():
     assert np.all(projected <= 1.4 + 1e-8)
 
 
-def test_balanced_lengths_outperform_unbalanced_lengths():
+def test_different_allocations_produce_different_occupied_ratios():
     env = LinkAllocationEnv()
     env.reset(seed=7)
     _, balanced_reward, _, _, balanced_info = env.step([0.9, 0.9, 0.9, 0.9])
@@ -47,14 +47,29 @@ def test_balanced_lengths_outperform_unbalanced_lengths():
     env.reset(seed=7)
     _, unbalanced_reward, _, _, unbalanced_info = env.step([1.4, 1.4, 0.4, 0.4])
 
-    assert balanced_reward > unbalanced_reward
-    assert balanced_info["inner_radius"] == 0.0
-    assert unbalanced_info["inner_radius"] > 0.0
+    assert not np.isclose(balanced_reward, unbalanced_reward)
+    assert not np.isclose(balanced_info["occupied_ratio"], unbalanced_info["occupied_ratio"])
 
 
-def test_inner_radius_is_zero_when_no_link_dominates():
+def test_same_input_is_deterministic_under_fixed_sampling_seed():
     env = LinkAllocationEnv()
     env.reset(seed=7)
-    _, _, _, _, info = env.step([1.2, 0.8, 0.8, 0.8])
+    _, reward_a, _, _, info_a = env.step([1.2, 0.8, 0.8, 0.8])
 
-    assert info["inner_radius"] == 0.0
+    env.reset(seed=99)
+    _, reward_b, _, _, info_b = env.step([1.2, 0.8, 0.8, 0.8])
+
+    assert np.isclose(reward_a, reward_b)
+    assert np.isclose(info_a["occupied_ratio"], info_b["occupied_ratio"])
+    assert np.allclose(info_a["workspace_points"], info_b["workspace_points"])
+
+
+def test_step_exposes_workspace_shapes_and_bounds():
+    env = LinkAllocationEnv()
+    env.reset(seed=7)
+    _, _, _, _, info = env.step([1.0, 1.0, 0.8, 0.8])
+
+    assert info["workspace_points"].shape == (env.config.workspace_sampling.num_samples, 2)
+    assert info["joint_angle_samples"].shape == (env.config.workspace_sampling.num_samples, 4)
+    assert info["grid_shape"] == env.config.workspace_sampling.grid_size
+    assert np.allclose(info["xy_bounds"], np.asarray(env.config.workspace_sampling.xy_bounds, dtype=np.float32))
