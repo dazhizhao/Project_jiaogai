@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 try:
     import yaml
@@ -93,10 +94,48 @@ def build_parser() -> argparse.ArgumentParser:
 
 def load_sac():
     from stable_baselines3 import SAC
+    from stable_baselines3.common.callbacks import BaseCallback
     from stable_baselines3.common.logger import configure
     from stable_baselines3.common.monitor import Monitor
 
-    return SAC, Monitor, configure
+    return SAC, Monitor, configure, BaseCallback
+
+
+def build_progress_callback(base_callback_cls, total_timesteps: int):
+    class TqdmProgressCallback(base_callback_cls):
+        def __init__(self) -> None:
+            super().__init__()
+            self._progress_bar: tqdm | None = None
+            self._last_timestep = 0
+
+        def _on_training_start(self) -> None:
+            self._progress_bar = tqdm(
+                total=total_timesteps,
+                desc="train_rl",
+                dynamic_ncols=True,
+                leave=True,
+            )
+
+        def _on_step(self) -> bool:
+            if self._progress_bar is None:
+                return True
+            current_timestep = min(int(self.num_timesteps), total_timesteps)
+            delta = current_timestep - self._last_timestep
+            if delta > 0:
+                self._progress_bar.update(delta)
+                self._last_timestep = current_timestep
+            return True
+
+        def _on_training_end(self) -> None:
+            if self._progress_bar is None:
+                return
+            remaining = total_timesteps - self._last_timestep
+            if remaining > 0:
+                self._progress_bar.update(remaining)
+            self._progress_bar.close()
+            self._progress_bar = None
+
+    return TqdmProgressCallback()
 
 
 def ensure_json(path: Path, payload: dict[str, Any]) -> None:
@@ -216,7 +255,7 @@ def export_best_episode(
     return {
         "best_rollout": str(rollout_path),
         "best_pose": str(pose_path),
-        "best_rollout_video": str(video_path),
+        "rollout_video": str(video_path),
     }
 
 
@@ -236,7 +275,7 @@ def main() -> None:
     run_dir, resolved_run_name = build_run_dir(output_root, "rl_torque_control", run_name)
     artifacts_dir = ensure_artifacts_dir(run_dir)
 
-    SAC, Monitor, configure = load_sac()
+    SAC, Monitor, configure, BaseCallback = load_sac()
 
     train_env = Monitor(TorqueControlEnv(config=env_config), filename=str(run_dir / "monitor.csv"))
     eval_env = TorqueControlEnv(config=env_config)
@@ -258,7 +297,8 @@ def main() -> None:
     )
     model.set_logger(configure(str(run_dir), ["csv"]))
     print(f"training torque control: run={resolved_run_name} timesteps={total_timesteps} seed={seed}")
-    model.learn(total_timesteps=total_timesteps, progress_bar=False)
+    progress_callback = build_progress_callback(BaseCallback, total_timesteps=total_timesteps)
+    model.learn(total_timesteps=total_timesteps, progress_bar=False, callback=progress_callback)
 
     model_path = run_dir / "model_final.zip"
     model.save(str(model_path))
@@ -309,6 +349,7 @@ def main() -> None:
     print(f"saved model to {model_path}")
     print(f"saved summary to {run_dir / 'summary.json'}")
     print(f"saved artifacts to {artifacts_dir}")
+    print(f"saved rollout video to {artifact_paths['rollout_video']}")
 
 
 if __name__ == "__main__":

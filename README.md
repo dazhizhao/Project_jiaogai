@@ -96,6 +96,7 @@ python scripts/train_rl.py \
 最佳回合优先从成功回合中选择；若评估时没有成功回合，则退化为总回报最高回合。其余可视化和回放文件统一放在 `artifacts/` 子目录，避免根目录堆太多文件。
 
 训练期间控制台输出已精简为少量开始/结束信息。更完整的训练过程曲线会保存到 `artifacts/training_curves.png`，其中会尽量展示 episode reward、episode length 以及 SB3 记录到 `progress.csv` 中的 actor/critic loss 等常见 RL 指标。
+训练结束时也会明确打印 torque rollout 视频路径；同一路径也会写入 `summary.json -> evaluation -> artifact_paths -> rollout_video`。
 
 ## 物理环境与可视化
 

@@ -54,6 +54,8 @@ def test_train_rl_smoke_creates_expected_outputs(tmp_path: Path):
         "mean_motion_penalty",
         "mean_smoothness_penalty",
     }
+    assert "rollout_video" in evaluation["artifact_paths"]
+    assert evaluation["artifact_paths"]["rollout_video"].endswith("best_rollout.mp4")
 
     samples = np.load(artifacts_dir / "best_rollout.npz")
     assert set(samples.files) >= {"step", "reward", "distance_to_target", "applied_action"}
